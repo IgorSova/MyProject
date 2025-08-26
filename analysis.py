@@ -3,11 +3,21 @@ import networkx as nx
 import db
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 def fig(frame):
+        """
+        Создает фигуру для дальнейшего ее размещения в окне tkinter
+
+        :param frame: окно, в котором размещается фигура
+        :return: Фигура без какого-либо содержания
+        """
         fig = plt.figure(figsize=(10, 5))
-        # fig.set_size_inches(7, 4)
         figura = FigureCanvasTkAgg(fig, master=frame)
         return figura
 def topquery():
+        """
+        Запрос, выводящий топ-5 клиентов по сумме покупок
+
+        :return: текст запроса
+        """
         query = f'''
                 SELECT
                     Customers.name AS customer,
@@ -24,6 +34,11 @@ def topquery():
                 '''
         return query
 def dinamicsdata():
+        """
+        Запрос, возвращающий данные для построения диаграмм динамики продаж
+
+        :return: результат выполнения запроса (DataFrame)
+        """
         query = f'''
                         SELECT
                             date,
@@ -37,6 +52,12 @@ def dinamicsdata():
         data = db.Connection().to_df(query)
         return data
 def relationsdata(selected_customers):
+        """
+        Запрос, возвращающий данные для построения графа связей между клиентами по заказанным товарам
+
+        :param selected_customers:
+        :return: результат выполнения запроса (numpy array)
+        """
         query = f'''
                         WITH right AS 
                         (SELECT DISTINCT
@@ -54,37 +75,55 @@ def relationsdata(selected_customers):
                         LEFT JOIN Orders ON Customers.customer_id = Orders.customer_id
                         LEFT JOIN Order_details ON Orders.order_id = Order_details.order_id 
                         LEFT JOIN right ON Order_details.good_id = right.good_id AND Customers.name <> right.name
-                        WHERE
-                        Customers.customer_id IN {selected_customers}
+                        WHERE Customers.customer_id IN {selected_customers}
                         '''
         data = db.Connection().to_df(query)
         data = data.to_numpy()
         return data
 def top():
+        """
+        Преобразование запроса topquery в DataFrame
+
+        :return: результат выполнения запроса (DataFrame)
+        """
         data = db.Connection().to_df(topquery())
         return data
 def dinamics(frame):
+        """
+        Формирует графики количества заказов и суммы продаж по датам
+
+        :param frame: окно, в котором размещаются графики
+        :return: Фигура с графиками количества заказов и суммы продаж по датам
+        """
         data = dinamicsdata()
         figura = fig(frame)
 
-        # левый график — количество заказов по датам
+        '''левый график — количество заказов по датам'''
         plt.subplot(2, 1, 1) # 1 row, 2 columns, 1 plot
         plt.plot(data['date'].values, data['orders'].values, color='red')
         plt.xticks(rotation=90)
         plt.title('Orders')
         plt.xlabel('date')
         plt.grid(axis='both', which='major', linestyle='dotted', linewidth=0.5)
-        # правый график — сумма продаж по датам
+        '''правый график — сумма продаж по датам'''
         plt.subplot(2, 1, 2) # 1 row, 2 columns, 2 plot
         plt.plot(data['date'].values, data['sales'].values, color='blue')
         plt.xticks(rotation=90)
         plt.title('Sales')
         plt.xlabel('date')
         plt.grid(axis='both', which='major', linestyle='dotted', linewidth=0.5)
-        # выводим оба графика
+        '''выводим оба графика'''
         plt.tight_layout()
         return figura
 def relations(frame, selected_customers):
+        """
+        Формирует граф связей между клиентами по общим товарам в заказах
+        Если общих товаров нет, клиент показан узлом, не связанным с другими узлами
+
+        :param frame: окно, в котором размещается граф
+        :param selected_customers: выбранные клиенты ([customer_id, name, contact, address], ...)
+        :return: Фигура с графом
+        """
         data = relationsdata(selected_customers)
         figura = fig(frame)
         G = nx.Graph()
